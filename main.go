@@ -1,15 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"runtime"
-
-	"golang.org/x/tools/go/analysis/singlechecker"
+	"golang.org/x/tools/go/analysis/multichecker"
 
 	"github.com/igor-sirotin/returnearly/returnearly"
 )
 
 func main() {
-	fmt.Println(runtime.GOROOT())
-	singlechecker.Main(returnearly.Analyzer)
+	multichecker.Main(returnearly.Analyzer)
 }
