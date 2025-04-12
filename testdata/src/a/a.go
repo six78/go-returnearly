@@ -137,3 +137,43 @@ func Test7(conditionOne bool, conditionTwo bool) {
 	}
 	fmt.Println("d")
 }
+
+// Test8
+// ❌conditionOne should be inverted:
+//   - YES: after_1 (1 line) is shorter than body_1 (8 lines)
+//   - YES: all branches in body_1 end up with a return statement, after_1 ends with a return statement
+// ✅conditionTwo should NOT be inverted:
+//   - NO: body_2 has no return and should always be executed before after_2
+// ❌conditionThree should be inverted:
+//   - YES: after_3 (1 line) is shorter than body_3 (3 lines)
+//   - YES: both body_3 and after_3 end with a return statement
+func Test8(conditionOne bool, conditionTwo bool, conditionThree bool) {
+	if conditionOne { // want "consider inverting the condition to return early"
+		if conditionTwo {
+			if conditionThree { // want "consider inverting the condition to return early"
+				fmt.Println("a")
+				fmt.Println("b")
+				fmt.Println("c")
+				return
+			}
+			fmt.Println("d")
+			return
+		}
+		fmt.Println("e")
+		fmt.Println("f")
+		fmt.Println("g")
+		return
+	}
+	fmt.Println("h")
+}
+
+// Test9
+// ✅conditionOne should NOT be inverted:
+//   - NO: body_1 has no return statement (both body_1 should always be executed, and always in this specific order).
+func Test9(conditionOne bool) bool {
+	if conditionOne {
+		fmt.Println("a")
+		fmt.Println("b")
+	}
+	return true
+}

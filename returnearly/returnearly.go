@@ -17,6 +17,9 @@ func position(pass *analysis.Pass, node ast.Node) string {
 	if node == nil {
 		return ""
 	}
+	if pass == nil {
+		return ""
+	}
 	pos := pass.Fset.Position(node.Pos())
 	return fmt.Sprintf("%s:%d", pos.Filename, pos.Line)
 }
@@ -36,11 +39,11 @@ func inspectNode(pass *analysis.Pass, file *ast.File, n ast.Node) bool {
 		return true // we only care about if-without-else
 	}
 
-	fmt.Printf("found condition: %s\n", position(pass, ifStmt))
+	//fmt.Printf("found condition: %s\n", position(pass, ifStmt))
 
 	// Find statements that follow the if block in the parent block
 	parentBlock, parentFunc := findEnclosingBlock(pass, file, ifStmt)
-	fmt.Printf("- parentBlock: %s\n", position(pass, parentBlock))
+	//fmt.Printf("- parentBlock: %s\n", position(pass, parentBlock))
 	if parentBlock == nil {
 		return true
 	}
@@ -67,6 +70,10 @@ func inspectNode(pass *analysis.Pass, file *ast.File, n ast.Node) bool {
 		}
 	}
 
+	//if parentFunc {
+	//	afterLen++
+	//}
+
 	bodyTerminates := blockEndsWithTerminal(ifStmt.Body.List)
 	report = thenLen > afterLen && (bodyTerminates || afterLen == 0) && afterTerminates
 
@@ -84,18 +91,19 @@ func inspectNode(pass *analysis.Pass, file *ast.File, n ast.Node) bool {
 	return true
 }
 
-func countRelevantStatements(stmts []ast.Stmt) int {
-	count := 0
+func countRelevantStatements(stmts []ast.Stmt) (count int) {
 	for _, stmt := range stmts {
 		switch stmt.(type) {
 		case *ast.EmptyStmt:
 			continue
-		case *ast.ReturnStmt:
+		case *ast.ReturnStmt, *ast.BranchStmt:
+			count++
+			return
 		default:
 			count++
 		}
 	}
-	return count
+	return
 }
 
 func blockEndsWithTerminal(stmts []ast.Stmt) bool {
