@@ -87,27 +87,6 @@ func analyzeNode(pass *analysis.Pass, file *ast.File, n ast.Node, stack *ParentS
 		return true
 	}
 
-	//isFuncBody := stack.IsFuncBody()
-	//if !isFuncBody {
-	//	logger.Println("Block is not part of a function body")
-	//	return true
-	//}
-
-	//parentFunc := stack.ParentFunc()
-
-	//// If no parentBlock block is found, skip the node
-	//if parentBlock == nil {
-	//	logger.Printf("no parent block found\n")
-	//	return true
-	//}
-
-	// Find statements that follow the if block in the parent block
-	//parentBlock, parentFunc := findEnclosingBlock(pass, file, ifStmt)
-	//if parentBlock == nil {
-	//	return true
-	//}
-
-	//thenLen, _ := countRelevantStatements(ifStmt.Body.List, true)
 	thenStart := pass.Fset.Position(ifStmt.Body.List[0].Pos()).Line
 	thenEnd := pass.Fset.Position(ifStmt.Body.List[len(ifStmt.Body.List)-1].End()).Line
 	thenLines := thenEnd - thenStart + 1
@@ -117,53 +96,23 @@ func analyzeNode(pass *analysis.Pass, file *ast.File, n ast.Node, stack *ParentS
 		return true
 	}
 
-	//afterLen := 0
-	//seen := false
-	//afterTerminates := isFuncBody
-	//returned := false
-
-	//var stmtStart, stmtEnd token.Position
-
 	afterStart := pass.Fset.Position(ifStmt.Body.End()).Line + 1 // increment, because the after block starts next line
 	afterEnd := pass.Fset.Position(parentBlock.End()).Line - 1   // decrement to exclude the `}` block termination line
 	afterLen := afterEnd - afterStart + 1
 
-	// Take the last block as terminal
-	lastStatement := parentBlock.List[len(parentBlock.List)-1]
-	returned := lastStatement != nil && isTerminalStmt(lastStatement)
+	lastStmt := parentBlock.List[len(parentBlock.List)-1]
+	returned := isTerminalStmt(lastStmt)
 	afterTerminates := isFuncBody || returned
+	afterIsEmpty := afterLen == 0
 
-	//// Check if there's a terminal statement before the end
-	//for i, stmt := range parentBlock.List {
-	//	if !seen {
-	//		// Mark when we reach the `if` statement
-	//		if stmt == ifStmt {
-	//			seen = true
-	//		}
-	//		continue
-	//	}
-	//	//afterLen, returned = countRelevantStatements([]ast.Stmt{stmt}, true)
-	//
-	//	//stmtStart, stmtEnd = pass.Fset.Position(stmt.Pos()), pass.Fset.Position(stmt.End())
-	//	//afterLines := stmtEnd.Line - stmtStart.Line
-	//	//afterLen += afterLines
-	//
-	//	//logger.Printf("- parent list iteration %d: %s, added = %d, total = %d\n", i, position(pass, stmt), afterLines, afterLen)
-	//
-	//	if isTerminalStmt(stmt) {
-	//		afterTerminates = true
-	//		break
-	//	}
-	//}
-
-	emptyAfter := afterLen == 0
-
+	// When the function doesn't have explicit return statement increment the `afterLen`.
+	// Because is we would to invert the condition, a return statement would appear.
 	if isFuncBody && !returned {
 		afterLen++
 	}
 
 	bodyTerminates := blockEndsWithTerminal(ifStmt.Body.List)
-	report = thenLen > afterLen && (bodyTerminates || emptyAfter) && afterTerminates
+	report = thenLen > afterLen && (bodyTerminates || afterIsEmpty) && afterTerminates
 
 	logger.Printf("- THEN block: start = %d, end = %d, len = %d\n", thenStart, thenEnd, thenLines)
 	logger.Printf("- AFTER block: start = %d, end = %d, len = %d\n", afterStart, afterEnd, afterLen)
@@ -177,25 +126,6 @@ func analyzeNode(pass *analysis.Pass, file *ast.File, n ast.Node, stack *ParentS
 	return true
 }
 
-func countRelevantStatements(stmts []ast.Stmt, countReturns bool) (count int, returned bool) {
-	returned = false
-	for _, stmt := range stmts {
-		switch stmt.(type) {
-		case *ast.EmptyStmt:
-			continue
-		case *ast.ReturnStmt, *ast.BranchStmt:
-			if countReturns {
-				count++
-			}
-			returned = true
-			return
-		default:
-			count++
-		}
-	}
-	return
-}
-
 func blockEndsWithTerminal(stmts []ast.Stmt) bool {
 	if len(stmts) == 0 {
 		return false
@@ -205,6 +135,9 @@ func blockEndsWithTerminal(stmts []ast.Stmt) bool {
 }
 
 func isTerminalStmt(stmt ast.Stmt) bool {
+	if stmt == nil {
+		return false
+	}
 	switch s := stmt.(type) {
 	case *ast.ReturnStmt, *ast.BranchStmt:
 		return true
@@ -228,36 +161,4 @@ func isTerminalStmt(stmt ast.Stmt) bool {
 		}
 	}
 	return false
-}
-
-func findEnclosingBlock(pass *analysis.Pass, root ast.Node, target ast.Stmt) (*ast.BlockStmt, bool) {
-	var enclosing *ast.BlockStmt
-	var enclosingFunc bool
-
-	ast.Inspect(root, func(n ast.Node) bool {
-		var block *ast.BlockStmt
-		funcDecl, isFunc := n.(*ast.FuncDecl)
-
-		if isFunc {
-			block = funcDecl.Body
-		} else {
-			var ok bool
-			block, ok = n.(*ast.BlockStmt)
-			if !ok {
-				return true
-			}
-		}
-
-		for _, stmt := range block.List {
-			if stmt == target {
-				enclosing = block
-				enclosingFunc = isFunc
-				return false
-			}
-		}
-
-		return true
-	})
-
-	return enclosing, enclosingFunc
 }

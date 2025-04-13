@@ -53,17 +53,6 @@ func (ps *ParentStack) ParentFunc() *ast.FuncDecl {
 	return nil
 }
 
-// IsFuncBody checks if the ParentBlock is the Body of the ParentFunc.
-func (ps *ParentStack) IsFuncBody() bool {
-	funcDecl := ps.ParentFunc()
-	blockStmt := ps.ParentBlock()
-	if funcDecl == nil || blockStmt == nil {
-		return false
-	}
-	// Ensure the blockStmt is the Body of the FuncDecl
-	return funcDecl.Body == blockStmt
-}
-
 func (ps *ParentStack) ParentInfo() (*ast.BlockStmt, *ast.FuncDecl, bool) {
 	funcDecl := ps.ParentFunc()
 	blockStmt := ps.ParentBlock()
